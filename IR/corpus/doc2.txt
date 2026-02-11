@@ -1,0 +1,1 @@
+File systems store data and manage files efficiently

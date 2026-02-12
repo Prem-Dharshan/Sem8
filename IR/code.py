@@ -320,3 +320,100 @@ def plot_metrics():
     plt.show()
 
 plot_metrics()
+
+
+# ---------- Precision-Recall Curve ----------
+
+def precision_recall_curve(scores, relevant):
+
+    ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+
+    tp = 0
+    fp = 0
+
+    precisions = []
+    recalls = []
+
+    for doc_id, _ in ranked:
+
+        if doc_id in relevant:
+            tp += 1
+        else:
+            fp += 1
+
+        precision = tp / (tp + fp) if (tp + fp) else 0
+        recall = tp / len(relevant) if relevant else 0
+
+        precisions.append(precision)
+        recalls.append(recall)
+
+    return recalls, precisions
+
+
+def plot_pr_curve(scores, relevant, title):
+
+    recall, precision = precision_recall_curve(scores, relevant)
+
+    plt.figure(figsize=(6, 5))
+
+    plt.plot(recall, precision, marker="o")
+
+    plt.xlabel("Recall")
+    plt.ylabel("Precision")
+    plt.title(title)
+
+    plt.grid()
+    plt.show()
+
+
+# Plot PR curves for models
+plot_pr_curve(vsm_scores, relevant_docs, "Precision-Recall Curve (VSM)")
+plot_pr_curve(bim_scores, relevant_docs, "Precision-Recall Curve (BIM)")
+plot_pr_curve(bm25_scores, relevant_docs, "Precision-Recall Curve (BM25)")
+plot_pr_curve(nb_scores, relevant_docs, "Precision-Recall Curve (Naive Bayes)")
+
+# ---------- Confusion Matrix ----------
+
+def confusion_matrix(retrieved, relevant, N):
+
+    retrieved = set(retrieved)
+
+    tp = len(retrieved & relevant)
+    fp = len(retrieved - relevant)
+    fn = len(relevant - retrieved)
+    tn = N - tp - fp - fn
+
+    return [[tp, fp],
+            [fn, tn]]
+
+
+def plot_confusion_matrix(scores, relevant, N, title):
+
+    retrieved = [i for i, s in scores.items() if s > 0]
+
+    cm = confusion_matrix(retrieved, relevant, N)
+
+    plt.figure(figsize=(5, 4))
+
+    plt.imshow(cm)
+    plt.colorbar()
+
+    plt.xticks([0, 1], ["Relevant", "Not Relevant"])
+    plt.yticks([0, 1], ["Retrieved", "Not Retrieved"])
+
+    plt.xlabel("Actual")
+    plt.ylabel("Predicted")
+    plt.title(title)
+
+    for i in range(2):
+        for j in range(2):
+            plt.text(j, i, cm[i][j], ha="center", va="center")
+
+    plt.show()
+
+
+# Plot confusion matrices
+plot_confusion_matrix(vsm_scores, relevant_docs, N, "Confusion Matrix (VSM)")
+plot_confusion_matrix(bim_scores, relevant_docs, N, "Confusion Matrix (BIM)")
+plot_confusion_matrix(bm25_scores, relevant_docs, N, "Confusion Matrix (BM25)")
+plot_confusion_matrix(nb_scores, relevant_docs, N, "Confusion Matrix (Naive Bayes)")

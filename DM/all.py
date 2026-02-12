@@ -91,6 +91,8 @@ print(f"\nAssociation Rules (conf >= {min_conf:.0%}):")
 for a, c, s, conf in rules:
     print(f"{set(a)} => {set(c)} | support: {s:.2f}, confidence: {conf:.2f}")
 
+
+# -------- ECLAT --------
 from itertools import combinations, chain
 
 transactions = {
@@ -155,3 +157,113 @@ for k, v in L.items():
 print(f"\nAssociation Rules (conf >= {min_conf:.0%}):")
 for a, c, s, conf in rules:
     print(f"{set(a)} => {set(c)} | support: {s:.2f}, confidence: {conf:.2f}")
+
+
+"""
+
+Milk,Bread,Eggs
+Bread,Butter
+Milk,Eggs
+
+import csv
+transactions = {}
+
+with open("data.csv", "r") as f:
+    reader = csv.reader(f)
+    for i, row in enumerate(reader, 1):
+        tid = f"T{i}"
+        items = set(x.strip() for x in row if x.strip())
+        transactions[tid] = items
+print(transactions)
+
+"""
+
+
+"""
+import pandas as pd
+import csv
+
+filename = "data.csv"     # data.csv / data.txt / data.xlsx
+
+if filename.endswith(".csv") or filename.endswith(".txt"):
+    df = pd.read_csv(filename)
+elif filename.endswith(".xlsx"):
+    df = pd.read_excel(filename)
+else:
+    raise ValueError("Unsupported file format")
+
+print("Original Data:")
+print(df)
+
+# Remove leading/trailing spaces
+for col in df.columns:
+    df[col] = df[col].astype(str).str.strip()
+
+# Replace empty strings with NaN
+df = df.replace("", pd.NA)
+
+for col in df.columns:
+    if df[col].dtype in ["int64", "float64"]:
+        df[col] = df[col].fillna(df[col].mean())
+
+    else:
+        df[col] = df[col].fillna(df[col].mode()[0])
+
+print("\nAfter Cleaning & NA Filling:")
+print(df)
+
+df = df.drop_duplicates()
+
+transactions = {}
+for index, row in df.iterrows():
+    tid = f"T{index + 1}"
+    items = set()
+
+    for col in df.columns:
+        value = row[col]
+        item = f"{col}={value}"
+        items.add(item)
+    transactions[tid] = items
+
+print("\nFinal Transactions:")
+for t, items in transactions.items():
+    print(t, "->", items)
+"""
+
+"""
+import pandas as pd
+import numpy as np
+
+# 1. Reading from CSV
+def load_csv(file_path):
+    df = pd.read_csv(file_path)
+    return df
+
+# 2. Reading from Excel
+def load_excel(file_path, sheet_name=0):
+    df = pd.read_excel(file_path, sheet_name=sheet_name)
+    return df
+
+# 3. Mean and Median Fill (For Numerical Columns)
+def impute_numerical(df):
+    # Filling with Mean
+    df_mean = df.copy()
+    # Select only numeric columns for mean/median to avoid errors
+    numeric_cols = df_mean.select_dtypes(include=[np.number]).columns
+    df_mean[numeric_cols] = df_mean[numeric_cols].fillna(df_mean[numeric_cols].mean())
+    
+    # Filling with Median
+    df_median = df.copy()
+    df_median[numeric_cols] = df_median[numeric_cols].fillna(df_median[numeric_cols].median())
+    
+    return df_mean, df_median
+
+# 4. General Fill NA (For Categorical/Transaction Data)
+def fill_general_na(df, value="Unknown"):
+    # Often in transaction data, we fill NaNs with a placeholder or empty string
+    return df.fillna(value)
+
+# Example Usage:
+# df = load_csv('transactions.csv')
+# df_filled = fill_general_na(df, value="Missing_Item")
+"""

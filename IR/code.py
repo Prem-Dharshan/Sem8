@@ -419,59 +419,59 @@ plot_confusion_matrix(bm25_scores, relevant_docs, N, "Confusion Matrix (BM25)")
 plot_confusion_matrix(nb_scores, relevant_docs, N, "Confusion Matrix (Naive Bayes)")
 
 
-# import os
-# import csv
+import os
+import csv
 
-# corpus_path = "./corpus"   # folder containing txt/csv files
+corpus_path = "./corpus"   # folder containing txt/csv files
 
-# docs = []
-# relevance_map = {}   # optional: {doc_index: relevance}
+docs = []
+relevance_map = {}   # optional: {doc_index: relevance}
 
-# doc_index = 0
-
-
-# for filename in sorted(os.listdir(corpus_path)):
-
-#     path = os.path.join(corpus_path, filename)
+doc_index = 0
 
 
-#     # -------- TXT FILES --------
-#     if filename.endswith(".txt"):
+for filename in sorted(os.listdir(corpus_path)):
 
-#         with open(path, "r", errors="ignore") as f:
-
-#             text = f.read().strip()
-
-#             if text:
-#                 docs.append(text)
-#                 doc_index += 1
+    path = os.path.join(corpus_path, filename)
 
 
-#     # -------- CSV FILES --------
-#     elif filename.endswith(".csv"):
+    # -------- TXT FILES --------
+    if filename.endswith(".txt"):
 
-#         with open(path, "r", encoding="utf-8") as f:
+        with open(path, "r", errors="ignore") as f:
 
-#             reader = csv.DictReader(f)
+            text = f.read().strip()
 
-#             for row in reader:
-
-#                 text = row["contents"]
-#                 rel = row.get("relevance", "0")
-
-#                 docs.append(text)
-#                 relevance_map[doc_index] = int(rel)
-
-#                 doc_index += 1
+            if text:
+                docs.append(text)
+                doc_index += 1
 
 
-# # Update N
-# N = len(docs)
+    # -------- CSV FILES --------
+    elif filename.endswith(".csv"):
+
+        with open(path, "r", encoding="utf-8") as f:
+
+            reader = csv.DictReader(f)
+
+            for row in reader:
+
+                text = row["contents"]
+                rel = row.get("relevance", "0")
+
+                docs.append(text)
+                relevance_map[doc_index] = int(rel)
+
+                doc_index += 1
 
 
-# # Optional: build relevant_docs from CSV relevance
-# if relevance_map:
+# Update N
+N = len(docs)
 
-#     relevant_docs = {
-#         i for i, r in relevance_map.items() if r == 1
-#     }
+
+# Optional: build relevant_docs from CSV relevance
+if relevance_map:
+
+    relevant_docs = {
+        i for i, r in relevance_map.items() if r == 1
+    }

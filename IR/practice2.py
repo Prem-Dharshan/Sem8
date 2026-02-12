@@ -337,3 +337,41 @@ plt.title("TF-IDF Heatmap")
 
 plt.show()
 
+
+
+def rank_scores(scores_dict):
+    return sorted(scores_dict.items(), key= lambda x: x[1], reverse=True)
+
+
+def plot_scores(scores, title):
+
+    ranked = rank_scores(scores)
+
+    docs = [i for i, _ in ranked]
+    vals = [s for _, s in ranked]
+
+    plt.figure(figsize=(8, 6))
+    plt.bar(docs, vals)
+
+
+
+def plot_metrics():
+
+    models = ["Boolean", "VSM", "BIM", "BM25", "Naive Bayes"]
+
+    results = {
+        "Boolean": evaluate(boolean_result),
+        "VSM": evaluate([i for i, s in vsm_scores.items() if s > 0]),
+        "BIM": evaluate([i for i, s in bim_scores.items() if s > 0]),
+        "BM25": evaluate([i for i, s in bm25_scores.items() if s > 0]),
+        "Naive Bayes" : evaluate([i for i, s in nb_scores.items() if s > -999999]),
+    }
+
+    accuracy = [results[m][0] for m in models]
+    precision = [results[m][1] for m in models]
+    recall = [results[m][2] for m in models]
+    f1 = [results[m][3] for m in models]
+
+    plt.figure(figsize=(8, 6))
+
+    

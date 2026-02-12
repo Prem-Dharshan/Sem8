@@ -1,5 +1,6 @@
 import math
 from collections import defaultdict, Counter
+from matplotlib import pyplot as plt
 import nltk
 from nltk.corpus import stopwords
 from nltk.stem import PorterStemmer, WordNetLemmatizer
@@ -184,3 +185,39 @@ print("Boolean:", evaluate(boolean_result))
 print("VSM:", evaluate([i for i, s in vsm_scores.items() if s > 0]))
 print("BIM:", evaluate([i for i, s in bim_scores.items() if s > 0]))
 print("BM25:", evaluate([i for i, s in bm25_scores.items() if s > 0]))
+
+
+def confusion_matrix(retrieved, relevant, N):
+
+    retrieved = set(retrieved)
+
+    tp = len(retrieved & relevant)
+    fp = len(retrieved - relevant)
+    fn = len(relevant - retrieved)
+    tn = N - tp - fp - fn
+
+    return [[tp, fp],
+            [fn, tn]]
+
+
+def plot_cm(scores, relevant, N, title):
+
+    retrieved = [i for i, s in scores.items() if s > 0]
+
+    cm = confusion_matrix(retrieved, relevant)
+
+    plt.imshow(cm)
+    plt.colorbar()
+
+    plt.xticks([0, 1], ["rel", "n rel"])
+    plt.xticks([0, 1], ["ret", "n ret"])
+
+    
+    plt.xlabel("Actual")
+    plt.ylabel("Predicted")
+    plt.title(title)
+
+
+    for i in [0, 1]:
+        for j in [0, 1]:
+            plt.text(j, i, cm[i][j], ha="center", va="center")

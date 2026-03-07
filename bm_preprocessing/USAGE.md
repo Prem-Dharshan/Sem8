@@ -18,7 +18,7 @@ from bm_preprocessing.IR import all, all_vis
 from bm_preprocessing.DM import all, all_vis
 
 # Import DM-specific algorithms
-from bm_preprocessing.DM import adaboost, apriori, bagging, hash, hunts, hunts_test, id3, id3_test, lib_doc, metrics, preprocessing
+from bm_preprocessing.DM import adaboost, apriori, bagging, hash, hunts, hunts_test, id3, id3_test, lib_doc, metrics, preprocessing, python_doc
 
 # Import IR-specific algorithms
 from bm_preprocessing.IR import eval_metrics, ndd, rel
@@ -95,6 +95,7 @@ python -c "from bm_preprocessing.DM import id3_test; print(id3_test)"
 python -c "from bm_preprocessing.DM import metrics; print(metrics)"
 python -c "from bm_preprocessing.DM import preprocessing; print(preprocessing)"
 python -c "from bm_preprocessing.DM import lib_doc; print(lib_doc)"
+python -c "from bm_preprocessing.DM import python_doc; print(python_doc)"
 ```
 
 ---
@@ -123,3 +124,4 @@ python -c "from bm_preprocessing.DM import lib_doc; print(lib_doc)"
 | `from bm_preprocessing.DM import metrics` | Classification metrics & curves |
 | `from bm_preprocessing.DM import preprocessing` | Data preprocessing utilities |
 | `from bm_preprocessing.DM import lib_doc` | Pandas, NumPy, Sklearn cheat sheet (DM & IR logic) |
+| `from bm_preprocessing.DM import python_doc` | Python Basics cheat sheet (Sets, Dicts, Comprehensions, etc.) |

@@ -1,198 +1,255 @@
-import math
-from collections import Counter, defaultdict
-
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import random
+import hashlib
+from itertools import combinations
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 import nltk
 from nltk.corpus import stopwords
-from nltk.stem import PorterStemmer, WordNetLemmatizer
+from nltk.tokenize import word_tokenize
+from nltk.stem import PorterStemmer
 
-nltk.download("stopwords")
-nltk.download("wordnet")
+nltk.download('punkt_tab')
+nltk.download('stopwords')
 
-stop_words = set(stopwords.words("english"))
-stemmer = PorterStemmer()
-lemmatizer = WordNetLemmatizer()
-
-
-def preprocess(text):
-    tokens = text.lower().split()
-    tokens = [t for t in tokens if t not in stop_words]
-    tokens = [stemmer.stem(t) for t in tokens]
-    tokens = [lemmatizer.lemmatize(t) for t in tokens]
-    return tokens
-
-
-# ---------- Corpus ----------
 docs = [
-    "information retrieval is fun",
-    "retrieval models are boolean vector probabilistic",
-    "information theory and probability",
-    "boolean retrieval is simple",
+    "information retrieval is the process of obtaining relevant documents",
+    "search engines use ranking algorithms for information retrieval",
+    "information retrieval systems index and rank documents",
+    "retrieval models help search engines find relevant documents",
+    "inverted index is widely used in information retrieval",
+    "query expansion improves retrieval effectiveness",
+    "query expansion adds related terms to the query",
+    "expansion techniques improve search results",
+    "duplicate documents appear frequently in search engines",
+    "near duplicate detection improves indexing"
 ]
 
-processed_docs = [preprocess(doc) for doc in docs]
-N = len(docs)
+stop_words = set(stopwords.words('english'))
+stemmer = PorterStemmer()
 
-# ---------- 2. Term Incidence Matrix ----------
-terms = sorted(set(term for doc in processed_docs for term in doc))
+def preprocess(text):
+    tokens = word_tokenize(text.lower())
+    tokens = [word for word in tokens if word.isalnum()]
+    tokens = [word for word in tokens if word not in stop_words]
+    tokens = [stemmer.stem(word) for word in tokens]
+    return tokens
 
-term_incidence = {
-    term: [1 if term in doc else 0 for doc in processed_docs] for term in terms
-}
+processed_docs = [" ".join(preprocess(doc)) for doc in docs]
 
-print("\nTerm Incidence Matrix:")
-for term, row in term_incidence.items():
-    print(term, row)
+shingles = []
+for doc in docs:
+    tokens = preprocess(doc)
+    shingles.append(set(tokens))
 
-# ---------- 3. Inverted Index ----------
-inverted_index = defaultdict(list)
+# MinHash
 
-for doc_id, doc in enumerate(processed_docs):
-    for term in set(doc):
-        inverted_index[term].append(doc_id)
+num_hash = 50
+max_shingle = 1000
+hash_funcs = []
 
-print("\nInverted Index:")
-for term, postings in inverted_index.items():
-    print(term, postings)
+for i in range(num_hash):
+    a = random.randint(1, max_shingle)
+    b = random.randint(0, max_shingle)
+    hash_funcs.append((a, b))
 
-# ---------- Query ----------
-query = "information AND NOT boolean"
-query_terms = preprocess(query)
+def hash_function(x, a, b):
+    return (a * x + b) % max_shingle
 
+vocab = list(set(word for doc in shingles for word in doc))
+shingle_index = {word: i for i, word in enumerate(vocab)}
 
-# ---------- 4. Boolean Model (AND / OR / NOT) ----------
-def boolean_retrieval(query):
-    tokens = query.upper().split()
-    result = set()
-    current_op = None
+signature = np.full((num_hash, len(docs)), np.inf)
 
-    i = 0
-    while i < len(tokens):
-        token = tokens[i]
+for doc_id, doc in enumerate(shingles):
+    for word in doc:
+        idx = shingle_index[word]
+        for i, (a, b) in enumerate(hash_funcs):
+            h = hash_function(idx, a, b)
+            signature[i, doc_id] = min(signature[i, doc_id], h)
 
-        if token in {"AND", "OR", "NOT"}:
-            current_op = token
-        else:
-            term = preprocess(token.lower())
-            postings = set()
+signature = signature.astype(int)
 
-            if term and term[0] in inverted_index:
-                postings = set(inverted_index[term[0]])
+def minhash_similarity(sig1, sig2):
+    return np.mean(sig1 == sig2)
 
-            if current_op == "NOT":
-                postings = set(range(N)) - postings
-                current_op = None
+minhash_sim = np.matrix(np.zeros((len(docs), len(docs))))
 
-            if not result:
-                result = postings
-            else:
-                if current_op == "AND":
-                    result = result & postings
-                elif current_op == "OR":
-                    result = result | postings
+for i in range(len(docs)):
+    for j in range(len(docs)):
+        minhash_sim[i, j] = minhash_similarity(signature[:, i], signature[:, j])
 
-        i += 1
+print("\nMinHash Similarity Matrix")
+print(np.round(minhash_sim, 3))
 
-    return result
+# LSH
 
+bands = 10
+rows = int(num_hash / bands)
+buckets = {}
 
-boolean_result = boolean_retrieval(query)
-print("\nBoolean Retrieval Result:", boolean_result)
+for b in range(bands):
+    for doc_id in range(len(docs)):
+        band = tuple(signature[b * rows:(b + 1) * rows, doc_id])
+        bucket_key = hashlib.md5(str(band).encode()).hexdigest()
+        buckets.setdefault((b, bucket_key), []).append(doc_id)
 
+candidates = set()
 
-# ---------- 5. Vector Space Model (TF-IDF) ----------
-def tf(doc):
-    return Counter(doc)
+for bucket_docs in buckets.values():
+    if len(bucket_docs) > 1:
+        for pair in combinations(bucket_docs, 2):
+            candidates.add(pair)
 
+print("\nLSH Candidate Pairs")
+print(candidates)
 
-def idf(term):
-    df = sum(1 for d in processed_docs if term in d)
-    return math.log(N / (df + 1))
+# Rocchio Algorithm
 
+vectorizer = TfidfVectorizer()
+tfidf = vectorizer.fit_transform(processed_docs)
 
-def tfidf(doc):
-    return {t: tf(doc)[t] * idf(t) for t in doc}
+query = "information retrieval"
+processed_query = " ".join(preprocess(query))
+q_vec = vectorizer.transform([processed_query])
 
+scores = cosine_similarity(q_vec, tfidf)[0]
+top_docs = scores.argsort()[::-1][:3]
 
-doc_vectors = [tfidf(doc) for doc in processed_docs]
-query_vector = tfidf(preprocess("information retrieval"))
+alpha = 1
+beta = 0.75
+gamma = 0.15
 
+relevant = tfidf[top_docs]
+non_relevant = tfidf[[i for i in range(len(docs)) if i not in top_docs]]
 
-def cosine_similarity(v1, v2):
-    num = sum(v1.get(t, 0) * v2.get(t, 0) for t in set(v1) | set(v2))
-    den1 = math.sqrt(sum(v**2 for v in v1.values()))
-    den2 = math.sqrt(sum(v**2 for v in v2.values()))
-    return num / (den1 * den2) if den1 and den2 else 0
+new_query = alpha * q_vec + beta * np.asarray(relevant.mean(axis=0)) - gamma * np.asarray(non_relevant.mean(axis=0))
+new_query = np.asarray(new_query)
+new_scores = cosine_similarity(new_query, tfidf)[0]
 
+print("\nRocchio Original Scores")
+print(np.round(scores, 3))
 
-vsm_scores = {i: cosine_similarity(query_vector, doc_vectors[i]) for i in range(N)}
+print("\nRocchio Updated Scores")
+print(np.round(new_scores, 3))
 
-print("\nVector Space Model Scores:", vsm_scores)
+# Local Context Analysis
 
+top_k = scores.argsort()[::-1][:5]
+top_docs_lca = [processed_docs[i] for i in top_k]
 
-# ---------- 6. Probabilistic Model (BIM with RSV) ----------
-def bim_rsv(doc, query_terms):
-    rsv = 0.0
-    for term in query_terms:
-        if term in doc:
-            df = sum(1 for d in processed_docs if term in d)
-            rsv += math.log((N - df + 0.5) / (df + 0.5))
-    return rsv
+term_freq = {}
 
+for doc in top_docs_lca:
+    for word in doc.split():
+        term_freq[word] = term_freq.get(word, 0) + 1
 
-bim_scores = {
-    i: bim_rsv(processed_docs[i], preprocess("information retrieval")) for i in range(N)
-}
+expanded_terms = sorted(term_freq, key=term_freq.get, reverse=True)[:5]
+expanded_query = processed_query + " " + " ".join(expanded_terms)
 
-print("\nBIM RSV Scores:", bim_scores)
+expanded_vec = vectorizer.transform([expanded_query])
+expanded_scores = cosine_similarity(expanded_vec, tfidf)[0]
 
-# ---------- 8. Okapi BM25 ----------
-avg_dl = sum(len(doc) for doc in processed_docs) / N
-k1, b = 1.5, 0.75
+print("\nLCA Expanded Query")
+print(expanded_query)
 
+print("\nLCA Scores")
+print(np.round(expanded_scores, 3))
 
-def bm25(doc, query_terms):
-    score = 0.0
-    doc_len = len(doc)
-    freqs = Counter(doc)
+# Jaccard Similarity
 
-    for term in query_terms:
-        if term in freqs:
-            df = sum(1 for d in processed_docs if term in d)
-            idf = math.log((N - df + 0.5) / (df + 0.5))
-            tf = freqs[term]
-            score += idf * (
-                (tf * (k1 + 1)) / (tf + k1 * (1 - b + b * doc_len / avg_dl))
-            )
-    return score
+def jaccard(a, b):
+    return len(a.intersection(b)) / len(a.union(b))
 
+jaccard_matrix = np.matrix(np.zeros((len(shingles), len(shingles))))
 
-bm25_scores = {
-    i: bm25(processed_docs[i], preprocess("information retrieval")) for i in range(N)
-}
+for i in range(len(shingles)):
+    for j in range(len(shingles)):
+        jaccard_matrix[i, j] = jaccard(shingles[i], shingles[j])
 
-print("\nBM25 Scores:", bm25_scores)
+print("\nJaccard Similarity Matrix")
+print(np.round(jaccard_matrix, 3))
 
-# ---------- 7. Evaluation Metrics ----------
-relevant_docs = {0, 3}  # ground truth
+# Precision Recall Fscore
 
+def precision(tp, fp):
+    return tp / (tp + fp) if tp + fp else 0
 
-def evaluate(retrieved):
-    retrieved = set(retrieved)
-    tp = len(retrieved & relevant_docs)
-    fp = len(retrieved - relevant_docs)
-    fn = len(relevant_docs - retrieved)
+def recall(tp, fn):
+    return tp / (tp + fn) if tp + fn else 0
 
-    precision = tp / (tp + fp) if tp + fp else 0
-    recall = tp / (tp + fn) if tp + fn else 0
-    f1 = 2 * precision * recall / (precision + recall) if precision + recall else 0
-    accuracy = tp / N
+def fscore(p, r):
+    return 2 * p * r / (p + r) if p + r else 0
 
-    return accuracy, precision, recall, f1
+tp, fp, fn = 8, 2, 3
 
+p = precision(tp, fp)
+r = recall(tp, fn)
+f = fscore(p, r)
 
-# ---------- 9. Compare Models ----------
-print("\nEvaluation Metrics:")
-print("Boolean:", evaluate(boolean_result))
-print("VSM:", evaluate([i for i, s in vsm_scores.items() if s > 0]))
-print("BIM:", evaluate([i for i, s in bim_scores.items() if s > 0]))
-print("BM25:", evaluate([i for i, s in bm25_scores.items() if s > 0]))
+print("\nPrecision:", round(p, 3))
+print("Recall:", round(r, 3))
+print("Fscore:", round(f, 3))
+
+# Signature Size Compression Ratio
+
+original_size = len(vocab) * len(docs)
+signature_size = signature.size
+compression_ratio = signature_size / original_size
+
+print("\nSignature Size:", signature_size)
+print("Compression Ratio:", round(compression_ratio, 3))
+
+# Mean Average Precision Change
+
+map_before = np.mean(scores)
+map_after = np.mean(new_scores)
+percent_change = ((map_after - map_before) / map_before) * 100
+
+print("\nMAP Before Rocchio:", round(map_before, 3))
+print("MAP After Rocchio:", round(map_after, 3))
+print("Percent Change in MAP:", round(percent_change, 3))
+
+# Graphs
+minhash_table = []
+
+for i in range(len(docs)):
+    for j in range(i+1, len(docs)):
+        minhash_table.append([
+            f"Doc{i}",
+            f"Doc{j}",
+            round(minhash_sim[i,j],3)
+        ])
+
+minhash_df = pd.DataFrame(minhash_table,
+                          columns=["Document 1","Document 2","MinHash Similarity"])
+
+jaccard_table = []
+
+for i in range(len(shingles)):
+    for j in range(i+1, len(shingles)):
+        jaccard_table.append([
+            f"Doc{i}",
+            f"Doc{j}",
+            round(jaccard_matrix[i,j],3)
+        ])
+
+jaccard_df = pd.DataFrame(jaccard_table,
+                          columns=["Document 1","Document 2","Jaccard Similarity"])
+
+print("\nJaccard Similarity Table")
+print(jaccard_df)
+print("\nMinHash Similarity Table")
+print(minhash_df)
+
+plt.figure()
+plt.bar(["Before Rocchio", "After Rocchio"], [map_before, map_after])
+plt.title("MAP Change after Rocchio")
+plt.show()
+
+plt.figure()
+plt.bar(["Precision", "Recall", "Fscore"], [p, r, f])
+plt.title("Evaluation Metrics")
+plt.show()

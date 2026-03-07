@@ -14,7 +14,7 @@ Create a file `example.py`:
 
 ```python
 # Import modules
-from bm_preprocessing.IR import all
+from bm_preprocessing.IR import all, all_vis, eval_metrics, ndd, rel
 from bm_preprocessing.DM import adaboost, apriori, bagging, hash, hunts, hunts_test, id3, id3_test, lib_doc, metrics, preprocessing
 from bm_preprocessing.DM import all, all_vis
 
@@ -108,6 +108,10 @@ Then in the Python REPL:
 
 ```bash
 python -c "from bm_preprocessing.IR import all; print(all)"
+python -c "from bm_preprocessing.IR import all_vis; print(all_vis)"
+python -c "from bm_preprocessing.IR import eval_metrics; print(eval_metrics)"
+python -c "from bm_preprocessing.IR import ndd; print(ndd)"
+python -c "from bm_preprocessing.IR import rel; print(rel)"
 python -c "from bm_preprocessing.DM import all; print(all)"
 python -c "from bm_preprocessing.DM import all_vis; print(all_vis)"
 python -c "from bm_preprocessing.DM import apriori; print(apriori)"
@@ -129,7 +133,11 @@ python -c "from bm_preprocessing.DM import preprocessing; print(preprocessing)"
 
 | Import | Description |
 |--------|-------------|
-| `from bm_preprocessing.IR import all` | Information Retrieval (BM25, TF-IDF, Boolean) |
+| `from bm_preprocessing.IR import all` | Information Retrieval (MinHash, LSH, Rocchio, Jaccard, VS) |
+| `from bm_preprocessing.IR import all_vis` | IR algorithms with Matplotlib visualizations |
+| `from bm_preprocessing.IR import eval_metrics` | Jaccard, PRF, Compression Ratio, MAP metrics & plots |
+| `from bm_preprocessing.IR import ndd` | Near Duplicate Documents (MinHash & LSH) |
+| `from bm_preprocessing.IR import rel` | Relevance feedback & query expansion (Rocchio & LCA) |
 | `from bm_preprocessing.DM import all` | All DM algorithms (Hunt's, ID3, Bagging, AdaBoost, metrics) |
 | `from bm_preprocessing.DM import all_vis` | All DM algorithms + graphviz & full visualization |
 | `from bm_preprocessing.DM import apriori` | Apriori algorithm |
@@ -143,3 +151,14 @@ python -c "from bm_preprocessing.DM import preprocessing; print(preprocessing)"
 | `from bm_preprocessing.DM import metrics` | Classification metrics & curves |
 | `from bm_preprocessing.DM import lib_doc` | Pandas/NumPy/Sklearn/DM/IR cheat sheet |
 | `from bm_preprocessing.DM import preprocessing` | Data preprocessing utilities |
+
+
+
+# Print cohesive modules
+python -c "from bm_preprocessing.IR import all; print(all)"
+python -c "from bm_preprocessing.IR import all_vis; print(all_vis)"
+
+# Print specific algorithms
+python -c "from bm_preprocessing.IR import ndd; print(ndd)"
+python -c "from bm_preprocessing.IR import rel; print(rel)"
+python -c "from bm_preprocessing.IR import eval_metrics; print(eval_metrics)"

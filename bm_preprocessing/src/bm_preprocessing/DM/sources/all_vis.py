@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import random
 import os
+import graphviz
 from collections import Counter
 from sklearn.datasets import load_iris
 from sklearn.model_selection import train_test_split
@@ -10,7 +11,9 @@ from sklearn.ensemble import BaggingClassifier, AdaBoostClassifier
 from sklearn.metrics import (
     accuracy_score, confusion_matrix, f1_score,
     precision_score, recall_score, classification_report,
+    roc_curve, auc, precision_recall_curve,
 )
+from sklearn.preprocessing import label_binarize
 import matplotlib.pyplot as plt
 
 
@@ -18,7 +21,6 @@ import matplotlib.pyplot as plt
 # 1. DATA LOADING & PREPROCESSING
 # ===========================================================
 
-# --- Load CSV data for Hunt's and ID3 ---
 data_path = os.path.join(os.path.dirname(__file__), "data.csv")
 df = pd.read_csv(data_path)
 df["Annual Income"] = (
@@ -30,7 +32,6 @@ df["Annual Income"] = (
     * 1000
 )
 
-# --- Load Iris for Bagging, AdaBoost, Metrics ---
 iris = load_iris()
 X, y = iris.data, iris.target
 X_train, X_test, y_train, y_test = train_test_split(
@@ -102,6 +103,25 @@ def print_tree(node, indent=""):
         print_tree(child, indent + "    ")
 
 
+def visualize_hunts_tree(node, parent_name="Root", graph=None):
+    if graph is None:
+        graph = graphviz.Digraph(format="png", engine="dot")
+    if node.is_leaf():
+        graph.node(parent_name, label=str(node.label), shape="ellipse")
+    else:
+        label = (
+            f"{node.feature} <= {node.median_value}"
+            if node.median_value
+            else str(node.feature)
+        )
+        graph.node(parent_name, label=label, shape="box")
+        for val, child in node.children.items():
+            child_name = f"{parent_name}_{val}"
+            graph.edge(parent_name, child_name, label=str(val))
+            visualize_hunts_tree(child, child_name, graph)
+    return graph
+
+
 print("\n" + "=" * 60)
 print("HUNT'S ALGORITHM - Decision Tree")
 print("=" * 60)
@@ -109,6 +129,12 @@ print("=" * 60)
 hunts_features = [col for col in df.columns if col not in ["Default id", "Tid"]]
 hunts_tree = hunts_build_tree(df, target_column="Default id", feature_columns=hunts_features)
 print_tree(hunts_tree)
+
+# Graphviz visualization
+hunts_graph = visualize_hunts_tree(hunts_tree)
+hunts_output = os.path.join(os.path.dirname(__file__), "all_hunts_tree")
+hunts_graph.render(hunts_output, view=False, cleanup=True)
+print(f"\nHunt's tree saved as '{hunts_output}.png'")
 
 
 # ===========================================================
@@ -188,6 +214,21 @@ def print_id3_tree(node, indent=""):
         print_id3_tree(child, indent + "    ")
 
 
+def visualize_id3_tree(node, parent_name="Root", graph=None):
+    if graph is None:
+        graph = graphviz.Digraph(format="png", engine="dot")
+    if node.is_leaf():
+        graph.node(parent_name, label=str(node.label), shape="ellipse")
+    else:
+        label = node.value if node.value else str(node.feature)
+        graph.node(parent_name, label=label, shape="box")
+        for val, child in node.children.items():
+            child_name = f"{parent_name}_{val}"
+            graph.edge(parent_name, child_name, label=str(val))
+            visualize_id3_tree(child, child_name, graph)
+    return graph
+
+
 print("\n" + "=" * 60)
 print("ID3 ALGORITHM - Decision Tree (data.csv)")
 print("=" * 60)
@@ -195,6 +236,11 @@ print("=" * 60)
 id3_features = [col for col in df.columns if col not in ["Default id", "Tid"]]
 id3_tree = id3(df, target_column="Default id", feature_columns=id3_features)
 print_id3_tree(id3_tree)
+
+id3_graph = visualize_id3_tree(id3_tree)
+id3_output = os.path.join(os.path.dirname(__file__), "all_id3_tree")
+id3_graph.render(id3_output, view=False, cleanup=True)
+print(f"\nID3 tree (data.csv) saved as '{id3_output}.png'")
 
 # Tennis dataset
 tennis_path = os.path.join(os.path.dirname(__file__), "tennis.csv")
@@ -206,6 +252,11 @@ if os.path.exists(tennis_path):
     print("ID3 ALGORITHM - Decision Tree (tennis.csv)")
     print("=" * 60)
     print_id3_tree(tennis_tree)
+
+    tennis_graph = visualize_id3_tree(tennis_tree)
+    tennis_output = os.path.join(os.path.dirname(__file__), "all_id3_tennis_tree")
+    tennis_graph.render(tennis_output, view=False, cleanup=True)
+    print(f"\nID3 tree (tennis.csv) saved as '{tennis_output}.png'")
 
 
 # ===========================================================
@@ -222,6 +273,7 @@ bagging_model = BaggingClassifier(
 )
 bagging_model.fit(X_train, y_train)
 y_pred_bag = bagging_model.predict(X_test)
+y_proba_bag = bagging_model.predict_proba(X_test)
 print(f"Accuracy: {accuracy_score(y_test, y_pred_bag):.4f}")
 print(f"First 10 Predictions: {y_pred_bag[:10]}")
 
@@ -240,6 +292,7 @@ adaboost_model = AdaBoostClassifier(
 )
 adaboost_model.fit(X_train, y_train)
 y_pred_ada = adaboost_model.predict(X_test)
+y_proba_ada = adaboost_model.predict_proba(X_test)
 print(f"Accuracy: {accuracy_score(y_test, y_pred_ada):.4f}")
 print(f"First 10 Predictions: {y_pred_ada[:10]}")
 
@@ -280,11 +333,11 @@ print(f"AdaBoost Accuracy: {accuracy_score(y_test, y_pred_ada):.4f}")
 
 
 # ===========================================================
-# 7. VISUALIZATION (Confusion Matrix Plot - matplotlib)
+# 7. VISUALIZATIONS (Confusion Matrix, ROC, Precision-Recall)
 # ===========================================================
 
+# --- Confusion Matrix Plots ---
 fig, axes = plt.subplots(1, 2, figsize=(14, 5))
-
 for ax, y_pred, title in zip(
     axes, [y_pred_bag, y_pred_ada], ["Bagging", "AdaBoost"]
 ):
@@ -301,8 +354,47 @@ for ax, y_pred, title in zip(
             ax.text(j, i, format(cm[i, j], "d"), ha="center", va="center",
                     color="white" if cm[i, j] > thresh else "black")
     ax.set_ylabel("True Label"); ax.set_xlabel("Predicted Label")
-
 plt.tight_layout()
-plt.savefig("all_confusion_matrices.png", dpi=150)
+plt.savefig("all_vis_confusion_matrices.png", dpi=150)
 plt.show()
-print("\nConfusion matrix plots saved as 'all_confusion_matrices.png'")
+print("\nConfusion matrix plots saved as 'all_vis_confusion_matrices.png'")
+
+# --- ROC Curves ---
+y_test_bin = label_binarize(y_test, classes=[0, 1, 2])
+n_classes = y_test_bin.shape[1]
+colors = ["#e74c3c", "#2ecc71", "#3498db"]
+
+fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+for ax, y_proba, title in zip(
+    axes, [y_proba_bag, y_proba_ada], ["Bagging", "AdaBoost"]
+):
+    for i in range(n_classes):
+        fpr, tpr, _ = roc_curve(y_test_bin[:, i], y_proba[:, i])
+        roc_auc = auc(fpr, tpr)
+        ax.plot(fpr, tpr, color=colors[i], lw=2,
+                label=f"{iris.target_names[i]} (AUC={roc_auc:.2f})")
+    ax.plot([0, 1], [0, 1], "k--", lw=1)
+    ax.set_xlabel("FPR"); ax.set_ylabel("TPR")
+    ax.set_title(f"{title} - ROC Curve", fontsize=12, fontweight="bold")
+    ax.legend(loc="lower right", fontsize=8)
+plt.tight_layout()
+plt.savefig("all_vis_roc_curves.png", dpi=150)
+plt.show()
+print("ROC curve plots saved as 'all_vis_roc_curves.png'")
+
+# --- Precision-Recall Curves ---
+fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+for ax, y_proba, title in zip(
+    axes, [y_proba_bag, y_proba_ada], ["Bagging", "AdaBoost"]
+):
+    for i in range(n_classes):
+        prec_vals, rec_vals, _ = precision_recall_curve(y_test_bin[:, i], y_proba[:, i])
+        ax.plot(rec_vals, prec_vals, color=colors[i], lw=2,
+                label=f"{iris.target_names[i]}")
+    ax.set_xlabel("Recall"); ax.set_ylabel("Precision")
+    ax.set_title(f"{title} - Precision-Recall Curve", fontsize=12, fontweight="bold")
+    ax.legend(loc="lower left", fontsize=8)
+plt.tight_layout()
+plt.savefig("all_vis_precision_recall_curves.png", dpi=150)
+plt.show()
+print("Precision-Recall curve plots saved as 'all_vis_precision_recall_curves.png'")

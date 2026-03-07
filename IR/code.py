@@ -1,18 +1,19 @@
 import math
-from collections import defaultdict, Counter
+from collections import Counter, defaultdict
+
+import matplotlib.pyplot as plt
 import nltk
+import pandas as pd
 from nltk.corpus import stopwords
 from nltk.stem import PorterStemmer, WordNetLemmatizer
 
-import pandas as pd
-import matplotlib.pyplot as plt
+nltk.download("stopwords")
+nltk.download("wordnet")
 
-nltk.download('stopwords')
-nltk.download('wordnet')
-
-stop_words = set(stopwords.words('english'))
+stop_words = set(stopwords.words("english"))
 stemmer = PorterStemmer()
 lemmatizer = WordNetLemmatizer()
+
 
 def preprocess(text):
     tokens = text.lower().split()
@@ -28,7 +29,7 @@ docs = [
     "information retrieval is fun",
     "retrieval models are boolean vector probabilistic",
     "information theory and probability",
-    "boolean retrieval is simple"
+    "boolean retrieval is simple",
 ]
 
 # OPTION B: Load from CSV files (1 or more)
@@ -37,14 +38,18 @@ docs = [
 
 csv_files = []  # put file names here if needed
 
+
 def load_docs_from_csv(csv_files, text_column="text"):
     all_docs = []
     for file in csv_files:
         df = pd.read_csv(file)
         if text_column not in df.columns:
-            raise ValueError(f"Column '{text_column}' not found in {file}. Columns: {df.columns}")
+            raise ValueError(
+                f"Column '{text_column}' not found in {file}. Columns: {df.columns}"
+            )
         all_docs.extend(df[text_column].dropna().astype(str).tolist())
     return all_docs
+
 
 if csv_files:
     docs = load_docs_from_csv(csv_files, text_column="text")
@@ -57,8 +62,7 @@ N = len(docs)
 terms = sorted(set(term for doc in processed_docs for term in doc))
 
 term_incidence = {
-    term: [1 if term in doc else 0 for doc in processed_docs]
-    for term in terms
+    term: [1 if term in doc else 0 for doc in processed_docs] for term in terms
 }
 
 print("\nTerm Incidence Matrix:")
@@ -118,6 +122,7 @@ def boolean_retrieval(query):
 
     return result
 
+
 boolean_result = boolean_retrieval(query)
 print("\nBoolean Retrieval Result:", boolean_result)
 
@@ -126,26 +131,28 @@ print("\nBoolean Retrieval Result:", boolean_result)
 def tf(doc):
     return Counter(doc)
 
+
 def idf(term):
     df = sum(1 for d in processed_docs if term in d)
     return math.log(N / (df + 1))
 
+
 def tfidf(doc):
     return {t: tf(doc)[t] * idf(t) for t in doc}
+
 
 doc_vectors = [tfidf(doc) for doc in processed_docs]
 query_vector = tfidf(preprocess("information retrieval"))
 
+
 def cosine_similarity(v1, v2):
     num = sum(v1.get(t, 0) * v2.get(t, 0) for t in set(v1) | set(v2))
-    den1 = math.sqrt(sum(v ** 2 for v in v1.values()))
-    den2 = math.sqrt(sum(v ** 2 for v in v2.values()))
+    den1 = math.sqrt(sum(v**2 for v in v1.values()))
+    den2 = math.sqrt(sum(v**2 for v in v2.values()))
     return num / (den1 * den2) if den1 and den2 else 0
 
-vsm_scores = {
-    i: cosine_similarity(query_vector, doc_vectors[i])
-    for i in range(N)
-}
+
+vsm_scores = {i: cosine_similarity(query_vector, doc_vectors[i]) for i in range(N)}
 
 print("\nVector Space Model Scores:", vsm_scores)
 
@@ -159,9 +166,9 @@ def bim_rsv(doc, query_terms):
             rsv += math.log((N - df + 0.5) / (df + 0.5))
     return rsv
 
+
 bim_scores = {
-    i: bim_rsv(processed_docs[i], preprocess("information retrieval"))
-    for i in range(N)
+    i: bim_rsv(processed_docs[i], preprocess("information retrieval")) for i in range(N)
 }
 
 print("\nBIM RSV Scores:", bim_scores)
@@ -170,6 +177,7 @@ print("\nBIM RSV Scores:", bim_scores)
 # ---------- 7. Okapi BM25 ----------
 avg_dl = sum(len(doc) for doc in processed_docs) / N
 k1, b = 1.5, 0.75
+
 
 def bm25(doc, query_terms):
     score = 0.0
@@ -181,13 +189,14 @@ def bm25(doc, query_terms):
             df = sum(1 for d in processed_docs if term in d)
             idf_val = math.log((N - df + 0.5) / (df + 0.5))
             tf_val = freqs[term]
-            score += idf_val * ((tf_val * (k1 + 1)) /
-                     (tf_val + k1 * (1 - b + b * doc_len / avg_dl)))
+            score += idf_val * (
+                (tf_val * (k1 + 1)) / (tf_val + k1 * (1 - b + b * doc_len / avg_dl))
+            )
     return score
 
+
 bm25_scores = {
-    i: bm25(processed_docs[i], preprocess("information retrieval"))
-    for i in range(N)
+    i: bm25(processed_docs[i], preprocess("information retrieval")) for i in range(N)
 }
 
 print("\nBM25 Scores:", bm25_scores)
@@ -203,6 +212,7 @@ V = len(vocab)
 doc_term_freqs = [Counter(doc) for doc in processed_docs]
 doc_lengths = [len(doc) for doc in processed_docs]
 
+
 def naive_bayes_score(doc_id, query_terms):
     score = 0.0
     freqs = doc_term_freqs[doc_id]
@@ -215,9 +225,9 @@ def naive_bayes_score(doc_id, query_terms):
 
     return score
 
+
 nb_scores = {
-    i: naive_bayes_score(i, preprocess("information retrieval"))
-    for i in range(N)
+    i: naive_bayes_score(i, preprocess("information retrieval")) for i in range(N)
 }
 
 print("\nNaive Bayes Scores:", nb_scores)
@@ -225,6 +235,7 @@ print("\nNaive Bayes Scores:", nb_scores)
 
 # ---------- 9. Evaluation Metrics ----------
 relevant_docs = {0, 3}  # ground truth (example)
+
 
 def evaluate(retrieved):
     retrieved = set(retrieved)
@@ -253,6 +264,7 @@ print("Naive Bayes:", evaluate([i for i, s in nb_scores.items() if s > -999999])
 def rank_scores(score_dict):
     return sorted(score_dict.items(), key=lambda x: x[1], reverse=True)
 
+
 print("\nRanking Results:")
 print("VSM Ranking:", rank_scores(vsm_scores))
 print("BIM Ranking:", rank_scores(bim_scores))
@@ -272,6 +284,7 @@ def plot_scores(scores, title):
     plt.xlabel("Documents")
     plt.ylabel("Score")
     plt.show()
+
 
 plot_scores(vsm_scores, "Vector Space Model (TF-IDF Cosine) Scores")
 plot_scores(bim_scores, "Probabilistic Model (BIM RSV) Scores")
@@ -319,10 +332,12 @@ def plot_metrics():
     plt.ylabel("F1 Score")
     plt.show()
 
+
 plot_metrics()
 
 
 # ---------- Precision-Recall Curve ----------
+
 
 def precision_recall_curve(scores, relevant):
 
@@ -374,6 +389,7 @@ plot_pr_curve(nb_scores, relevant_docs, "Precision-Recall Curve (Naive Bayes)")
 
 # ---------- Confusion Matrix ----------
 
+
 def confusion_matrix(retrieved, relevant, N):
 
     retrieved = set(retrieved)
@@ -383,8 +399,7 @@ def confusion_matrix(retrieved, relevant, N):
     fn = len(relevant - retrieved)
     tn = N - tp - fp - fn
 
-    return [[tp, fp],
-            [fn, tn]]
+    return [[tp, fp], [fn, tn]]
 
 
 def plot_confusion_matrix(scores, relevant, N, title):
@@ -419,13 +434,13 @@ plot_confusion_matrix(bm25_scores, relevant_docs, N, "Confusion Matrix (BM25)")
 plot_confusion_matrix(nb_scores, relevant_docs, N, "Confusion Matrix (Naive Bayes)")
 
 
-import os
 import csv
+import os
 
-corpus_path = "./corpus"   # folder containing txt/csv files
+corpus_path = "./corpus"  # folder containing txt/csv files
 
 docs = []
-relevance_map = {}   # optional: {doc_index: relevance}
+relevance_map = {}  # optional: {doc_index: relevance}
 
 doc_index = 0
 
@@ -433,7 +448,6 @@ doc_index = 0
 for filename in sorted(os.listdir(corpus_path)):
 
     path = os.path.join(corpus_path, filename)
-
 
     # -------- TXT FILES --------
     if filename.endswith(".txt"):
@@ -445,7 +459,6 @@ for filename in sorted(os.listdir(corpus_path)):
             if text:
                 docs.append(text)
                 doc_index += 1
-
 
     # -------- CSV FILES --------
     elif filename.endswith(".csv"):
@@ -472,6 +485,4 @@ N = len(docs)
 # Optional: build relevant_docs from CSV relevance
 if relevance_map:
 
-    relevant_docs = {
-        i for i, r in relevance_map.items() if r == 1
-    }
+    relevant_docs = {i for i, r in relevance_map.items() if r == 1}

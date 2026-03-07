@@ -1,4 +1,4 @@
-"""Source code loader for DM/preprocessing.py"""
+"""Source code loader for DM/all_vis.py"""
 
 from pathlib import Path
 
@@ -26,5 +26,5 @@ class SourceCodeModule:
 
 
 # Get the path to the source file
-_source_file = Path(__file__).parent / "sources" / "preprocessing.py"
-preprocessing = SourceCodeModule("DM.preprocessing", _source_file)
+_source_file = Path(__file__).parent / "sources" / "all_vis.py"
+all_vis = SourceCodeModule("DM.all_vis", _source_file)

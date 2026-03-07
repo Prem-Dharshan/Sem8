@@ -1,15 +1,17 @@
 import math
-from collections import defaultdict, Counter
+from collections import Counter, defaultdict
+
 import nltk
 from nltk.corpus import stopwords
 from nltk.stem import PorterStemmer, WordNetLemmatizer
 
-nltk.download('stopwords')
-nltk.download('wordnet')
+nltk.download("stopwords")
+nltk.download("wordnet")
 
-stop_words = set(stopwords.words('english'))
+stop_words = set(stopwords.words("english"))
 stemmer = PorterStemmer()
 lemmatizer = WordNetLemmatizer()
+
 
 def preprocess(text):
     tokens = text.lower().split()
@@ -18,12 +20,13 @@ def preprocess(text):
     tokens = [lemmatizer.lemmatize(t) for t in tokens]
     return tokens
 
+
 # ---------- Corpus ----------
 docs = [
     "information retrieval is fun",
     "retrieval models are boolean vector probabilistic",
     "information theory and probability",
-    "boolean retrieval is simple"
+    "boolean retrieval is simple",
 ]
 
 processed_docs = [preprocess(doc) for doc in docs]
@@ -33,8 +36,7 @@ N = len(docs)
 terms = sorted(set(term for doc in processed_docs for term in doc))
 
 term_incidence = {
-    term: [1 if term in doc else 0 for doc in processed_docs]
-    for term in terms
+    term: [1 if term in doc else 0 for doc in processed_docs] for term in terms
 }
 
 print("\nTerm Incidence Matrix:")
@@ -55,6 +57,7 @@ for term, postings in inverted_index.items():
 # ---------- Query ----------
 query = "information AND NOT boolean"
 query_terms = preprocess(query)
+
 
 # ---------- 4. Boolean Model (AND / OR / NOT) ----------
 def boolean_retrieval(query):
@@ -91,35 +94,40 @@ def boolean_retrieval(query):
 
     return result
 
+
 boolean_result = boolean_retrieval(query)
 print("\nBoolean Retrieval Result:", boolean_result)
+
 
 # ---------- 5. Vector Space Model (TF-IDF) ----------
 def tf(doc):
     return Counter(doc)
 
+
 def idf(term):
     df = sum(1 for d in processed_docs if term in d)
     return math.log(N / (df + 1))
 
+
 def tfidf(doc):
     return {t: tf(doc)[t] * idf(t) for t in doc}
+
 
 doc_vectors = [tfidf(doc) for doc in processed_docs]
 query_vector = tfidf(preprocess("information retrieval"))
 
+
 def cosine_similarity(v1, v2):
     num = sum(v1.get(t, 0) * v2.get(t, 0) for t in set(v1) | set(v2))
-    den1 = math.sqrt(sum(v ** 2 for v in v1.values()))
-    den2 = math.sqrt(sum(v ** 2 for v in v2.values()))
+    den1 = math.sqrt(sum(v**2 for v in v1.values()))
+    den2 = math.sqrt(sum(v**2 for v in v2.values()))
     return num / (den1 * den2) if den1 and den2 else 0
 
-vsm_scores = {
-    i: cosine_similarity(query_vector, doc_vectors[i])
-    for i in range(N)
-}
+
+vsm_scores = {i: cosine_similarity(query_vector, doc_vectors[i]) for i in range(N)}
 
 print("\nVector Space Model Scores:", vsm_scores)
+
 
 # ---------- 6. Probabilistic Model (BIM with RSV) ----------
 def bim_rsv(doc, query_terms):
@@ -130,9 +138,9 @@ def bim_rsv(doc, query_terms):
             rsv += math.log((N - df + 0.5) / (df + 0.5))
     return rsv
 
+
 bim_scores = {
-    i: bim_rsv(processed_docs[i], preprocess("information retrieval"))
-    for i in range(N)
+    i: bim_rsv(processed_docs[i], preprocess("information retrieval")) for i in range(N)
 }
 
 print("\nBIM RSV Scores:", bim_scores)
@@ -140,6 +148,7 @@ print("\nBIM RSV Scores:", bim_scores)
 # ---------- 8. Okapi BM25 ----------
 avg_dl = sum(len(doc) for doc in processed_docs) / N
 k1, b = 1.5, 0.75
+
 
 def bm25(doc, query_terms):
     score = 0.0
@@ -151,19 +160,21 @@ def bm25(doc, query_terms):
             df = sum(1 for d in processed_docs if term in d)
             idf = math.log((N - df + 0.5) / (df + 0.5))
             tf = freqs[term]
-            score += idf * ((tf * (k1 + 1)) /
-                     (tf + k1 * (1 - b + b * doc_len / avg_dl)))
+            score += idf * (
+                (tf * (k1 + 1)) / (tf + k1 * (1 - b + b * doc_len / avg_dl))
+            )
     return score
 
+
 bm25_scores = {
-    i: bm25(processed_docs[i], preprocess("information retrieval"))
-    for i in range(N)
+    i: bm25(processed_docs[i], preprocess("information retrieval")) for i in range(N)
 }
 
 print("\nBM25 Scores:", bm25_scores)
 
 # ---------- 7. Evaluation Metrics ----------
 relevant_docs = {0, 3}  # ground truth
+
 
 def evaluate(retrieved):
     retrieved = set(retrieved)
@@ -177,6 +188,7 @@ def evaluate(retrieved):
     accuracy = tp / N
 
     return accuracy, precision, recall, f1
+
 
 # ---------- 9. Compare Models ----------
 print("\nEvaluation Metrics:")

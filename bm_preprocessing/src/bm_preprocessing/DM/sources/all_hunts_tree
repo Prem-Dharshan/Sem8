@@ -1,0 +1,17 @@
+digraph {
+	Root [label="Home Owner" shape=box]
+	Root -> Root_Yes [label=Yes]
+	Root_Yes [label=No shape=ellipse]
+	Root -> Root_No [label=No]
+	Root_No [label="Marital Status" shape=box]
+	Root_No -> Root_No_Married [label=Married]
+	Root_No_Married [label=No shape=ellipse]
+	Root_No -> Root_No_Single [label=Single]
+	Root_No_Single [label="Annual Income <= 85000.0" shape=box]
+	Root_No_Single -> "Root_No_Single_<= 85000.0" [label="<= 85000.0"]
+	"Root_No_Single_<= 85000.0" [label=No shape=ellipse]
+	Root_No_Single -> "Root_No_Single_> 85000.0" [label="> 85000.0"]
+	"Root_No_Single_> 85000.0" [label=Yes shape=ellipse]
+	Root_No -> Root_No_Divorced [label=Divorced]
+	Root_No_Divorced [label=Yes shape=ellipse]
+}
